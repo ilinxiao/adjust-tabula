@@ -1,7 +1,5 @@
-import Tools
-from Tools import *
-import  xdrlib ,sys
-import xlrd,xlwt
+import  sys
+import xlwt
 from functools import reduce
 import re
 import json
@@ -16,8 +14,9 @@ table_header=[['名称、地名代码','水平范围','备注'],
                             ['名称、范围、高度','提供服务的单位','话呼','工作频率、时间','备注'],
                             ['航路、航线代号、导航点名称、坐标','磁航迹距离(千米/海里)','最低飞行高度(米)','宽度(千米)','巡航高度层方向','管制单位'],
                             ['名称代码','坐标','航路'],
-                            ['基本信息'],
                             ]
+
+tabula_path =  'tabula/tabula-1.0.1-jar-with-dependencies.jar'
 #一页一个sheet
 def write_page_to_excel_by_sheet(filename,tables):
 
@@ -264,7 +263,7 @@ def adjust(extract_table):
                             for ocell in one_piece:
                                 find_result=ocell['text'].find(cell['text'])
                                 if  find_result>=0:
-                                    Tools.output_file('debug_the_same_cell.txt','ocell text: %s' % ocell['text']+'\ncell text:%s' % cell['text']+'\n')
+                                    # Tools.output_file('debug_the_same_cell.txt','ocell text: %s' % ocell['text']+'\ncell text:%s' % cell['text']+'\n')
                                     break
 
                             if find_result<0:
@@ -452,9 +451,8 @@ def read_file(filename,op='r',json_data=True):
     
 def generation_page_file(target_file_name,extract_mode,output_file_type,page):
 
-    tabula_path = '../tabula/tabula-1.0.1-jar-with-dependencies.jar'
     # temp_file_name=get_page_file_name(target_file_name,extract_mode,page)
-    page_file_name = os.path.join('../output/', os.path.splitext(os.path.split(target_file_name)[1])[0] + '-page-' + '.json')
+    page_file_name = os.path.join('output/', os.path.splitext(os.path.split(target_file_name)[1])[0] + '-page-' + '.json')
     # print('第%d页：%s' % (page,temp_file_name))
     java_cm='java -jar %s %s -%s -f %s -p %d -o %s' %(tabula_path,target_file_name,extract_mode,output_file_type,page, page_file_name)
     exec_status,exec_output=subprocess.getstatusoutput(java_cm)
@@ -515,7 +513,7 @@ def repair():
         if os.path.exists(target):
         
             pdf_files=[]
-            tabula_path='../tabula/tabula-1.0.1-jar-with-dependencies.jar'
+            # tabula_path='tabula/tabula-1.0.1-jar-with-dependencies.jar'
             print('target is exists.')
             file_suffix = '.pdf'
             if os.path.isfile(target):
@@ -549,7 +547,7 @@ def repair():
                 file_name = os.path.splitext(os.path.split(file)[1])[0]
                 print('original file name :%s' % file_name )
                 file_name_hash=hashlib.md5(file_name.encode('utf-8')).hexdigest()
-                temp_dir='../temp/'
+                temp_dir='temp/'
                 if not os.path.exists(temp_dir):
                     os.mkdir(temp_dir)
                 
@@ -614,7 +612,7 @@ def repair():
                     temp_file_suffix='.csv'
                  
                  
-                output_dir='../output/'
+                output_dir='output/'
                 if not os.path.exists(output_dir):
                     os.mkdir(output_dir)
                     
