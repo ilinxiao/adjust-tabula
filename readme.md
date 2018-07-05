@@ -3,7 +3,7 @@ tabula是一个专业的pdf表格数据导出项目，此代码是对tabula导�
 
 ## 安装组件：
 1. [安装Java](http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html "java")运行环境。目的是能够运行tabula的jar包。
-2.[安装Python3](https://www.python.org/downloads/ "下载Python3")
+2. [安装Python3](https://www.python.org/downloads/ "下载Python3")
 3. [安装PyPDF2](https://pypi.org/project/PyPDF2/ "PyPDF2")
 4. [安装xlwt](https://pypi.org/project/xlwt/ "xlwt")
 
