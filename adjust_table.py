@@ -36,7 +36,16 @@ table_header=[['名称、地名代码','水平范围','备注'],
                           ['产品名称','营业收入','营业利润','毛利率','营业收入比上年同期增减','营业利润比上年同期增减','毛利率比上年同期增减'],
                           ['资产的具体内容','形成原因','资产规模','所在地','运营模式','保障资产安全性的控制措施','收益状况','境外资产占公司净资产的比重','是否存在重大减值风险'],
                             ]
-
+"""
+tabula两种输出模式：lattice和stream。
+目前代码是根据tabula的lattice模式输出做调整。输出是json文件，文件保留了每个单元格的一些位置信息。
+从结果输出统计来看，如果pdf中有黑色背景的表格，stream输出结果的完整性更好，但是缺少结构信息，没办法判断表格的边界在哪里。
+所以综合来看，应该用一种新的模式结合现有的两种模式的优缺点。
+关于边界的概念，有个功能需要完善的地方：
+当某个表格内容跨多页时，怎么在输出时合并成一个表格？
+----
+还有，现有的调整基础可控制性太弱了，最有效的方式应该在tabula原项目上查找原因。
+"""
 tabula_path =  'tabula/tabula-1.0.1-jar-with-dependencies.jar'
 #一页一个sheet
 def write_page_to_excel_by_sheet(filename,tables):
@@ -473,9 +482,11 @@ def read_file(filename,op='r',json_data=True):
 def generation_page_file(target_file_name,extract_mode,output_file_type,page):
 
     # temp_file_name=get_page_file_name(target_file_name,extract_mode,page)
-    page_file_name = os.path.join('output/', os.path.splitext(os.path.split(target_file_name)[1])[0] + '-page-' + '.json')
-    # print('第%d页：%s' % (page,temp_file_name))
+    new_file_name = os.path.splitext(os.path.split(target_file_name)[1])[0] + '-page-{}.json'.format(page)
+    page_file_name = os.path.join('output/', new_file_name)
+    # print('第%d页：%s' % (page,page_file_name))
     java_cm='java -jar %s %s -%s -f %s -p %d -o %s' %(tabula_path,target_file_name,extract_mode,output_file_type,page, page_file_name)
+    # print('java cmd:%s' % java_cm)
     exec_status,exec_output=subprocess.getstatusoutput(java_cm)
     table=[]
     if exec_status==0:
@@ -535,7 +546,6 @@ def repair():
         
             pdf_files=[]
             # tabula_path='tabula/tabula-1.0.1-jar-with-dependencies.jar'
-            print('target is exists.')
             file_suffix = '.pdf'
             if os.path.isfile(target):
                 # print('a file.')
@@ -553,10 +563,17 @@ def repair():
                     if os.path.isfile(file_path) and os.path.splitext(file_path)[1] == file_suffix:
                         pdf_files.append(file_path)
                         
+            #分页检查开关
             truish_words = ['yes', 'true', '1', 'y', 'ok']
-            
             need_check = find_param('check', 'True').lower() in truish_words
-    
+            print('need check') if need_check else print('only output all')
+            
+            lattice_mode = ['lattice', 'l', 'r', 'spreadsheet']
+            stream_mode =['stream', 's', 'n']
+            extract_mode = find_param('mode', 'r')
+            if not extract_mode or extract_mode not in lattice_mode+stream_mode:
+                extract_mode = 'r'
+                
             for file in pdf_files:
                  
                 #分两种形式输出调整后的表格：
@@ -572,55 +589,14 @@ def repair():
                 if not os.path.exists(temp_dir):
                     os.mkdir(temp_dir)
                 
-                temp_file_name=os.path.join(temp_dir, file_name_hash+file_suffix)
+                adjusting_file_name=os.path.join(temp_dir, file_name_hash+file_suffix)
                 # print('file_name_hash:%s' % file_name)
                 # if os.path.exists(file_name):
                     # os.remove(file_name)
-                shutil.copy2(file,temp_file_name)
+                shutil.copy2(file,adjusting_file_name)
                 
-                pages = get_pages(temp_file_name)
+                pages = get_pages(adjusting_file_name)
                 print('check pages:%d' % pages)
-                
-                page_start = 1
-                page_end = pages
-                
-                try:
-                    check_page = find_param('page', 'top5')
-                    print(check_page)
-                    #need_check = True时，page参数有效。
-                    #page的值几种表示方式：
-                    #1.区间:2-5
-                    #2.单页数字
-                    #3.all
-                    #4.top5 默认值
-                    
-                    if check_page.find('-') > 0:
-                        sp_index = check_page.find('-')
-                        page_start = int(check_page.split('-')[0])
-                        page_end  = int(check_page.split('-')[1])
-                        
-                    else:
-                        
-                        if check_page != 'all':
-                            
-                            if check_page.find('top') == 0:
-                                page_start = 1
-                                page_end = int(check_page[len('top'):])
-                            else:
-                                page_start = int(check_page)
-                                page_end = int(check_page)
-                        else:
-                            page_start = 1
-                            page_end = pages
-                            
-                    if page_start > page_end or page_end > pages:
-                        raise Exception('error value')
-                        
-                except Exception:
-                    print('错误的参数值.')
-                    page_start = 1
-                    page_end = 5
-                
                 
                 # if os.path.exists(file_name):
                     # print('%s复制完成。' % file_name)
@@ -637,38 +613,82 @@ def repair():
                 if not os.path.exists(output_dir):
                     os.mkdir(output_dir)
                     
-                print('file :%s' % file)
-                all_file_name=temp_dir+file_name+'-all'+temp_file_suffix
-                java_cm=u'java -jar %s %s -r -f %s -p %s -o %s' %(tabula_path,file,file_type,'all',all_file_name)
-                
+                # print('file :%s' % file)
+                adjusting_all_file_name = os.path.join(temp_dir, file_name_hash+'-all'+temp_file_suffix)
+                java_cm=u'java -jar %s %s -%s -f %s -p %s -o %s' %(tabula_path,adjusting_file_name,extract_mode,file_type,'all',adjusting_all_file_name)
+                print('all java cmd:%s' % java_cm)
                 exec_status,exec_output=subprocess.getstatusoutput(java_cm)
                 if exec_status == 0:
                     
-                    if os.path.exists(all_file_name):
+                    if os.path.exists(adjusting_all_file_name):
                         
-                        tables=read_file(all_file_name)
+                        tables=read_file(adjusting_all_file_name)
                         
                         all_data=adjust_tables(tables)
                         
                         o_data = output_data(all_data)
                                          
-                        adjust_file_name=output_dir+file_name+'(adjusted)'+temp_file_suffix
-                        with open(adjust_file_name,'wt',encoding='utf-8')  as tfile:
+                        output_all_file_name=output_dir+file_name+'(adjusted)'+temp_file_suffix
+                        with open(output_all_file_name,'wt',encoding='utf-8')  as tfile:
                             json.dump(o_data,tfile,ensure_ascii=False)
                             
                         # adjust_excel_file_name=output_dir+file_name+'(adjusted).xls'
                         # write_page_to_excel_by_sheet(adjust_excel_file_name,o_data)       
                         
-                        os.remove(all_file_name)
-                        
+                        os.remove(adjusting_all_file_name)
+                else:
+                    print('执行转换所有页出现异常。')
+                    
+                page_start = 1
+                page_end = pages
+
                 if need_check:                                   
+                    
+                    try:
+                        check_page = find_param('page', 'top5')
+                        print(check_page)
+                        #need_check = True时，page参数有效。
+                        #page的值几种表示方式：
+                        #1.区间:2-5
+                        #2.单页数字
+                        #3.all
+                        #4.top5 默认值
+                        
+                        if check_page.find('-') > 0:
+                            sp_index = check_page.find('-')
+                            page_start = int(check_page.split('-')[0])
+                            page_end  = int(check_page.split('-')[1])
+                            
+                        else:
+                            
+                            if check_page != 'all':
+                                
+                                if check_page.find('top') == 0:
+                                    page_start = 1
+                                    page_end = int(check_page[len('top'):])
+                                else:
+                                    page_start = int(check_page)
+                                    page_end = int(check_page)
+                            else:
+                                page_start = 1
+                                page_end = pages
+                                
+                        if page_start > page_end or page_end > pages:
+                            raise Exception('error value')
+                            
+                    except Exception:
+                        print('错误的参数值.')
+                        page_start = 1
+                        page_end = 5
+                    
+                    
                     i=page_start
                     while i < page_end+1:
                         step=1
                     # for i in range(1,pages+1):
                         
                         print('正在解析文档：%s，第(%d)页。' %(os.path.split(file)[1], i))
-                        lattice_table,exec_status=generation_page_file(file,'r', file_type ,i)
+                        lattice_table,exec_status=generation_page_file(adjusting_file_name,extract_mode, file_type ,i)
                         if exec_status!=0:
                             if exec_status == -100:
                                 print(' Page number does not exist')
@@ -677,9 +697,9 @@ def repair():
                                 
                         page_table=adjust_tables(lattice_table)
                         
-                        page_adjusted_file_name=output_dir+os.path.splitext(os.path.split(file)[1])[0]+'-page-'+repr(i)+'-(adjusted)'
-                        excel_page_file_name = page_adjusted_file_name+'.xls'
-                        json_page_file_name = page_adjusted_file_name+'.json'
+                        adjusted_page_file_name=output_dir+os.path.splitext(os.path.split(file)[1])[0]+'-page-'+repr(i)+'-(adjusted)'
+                        excel_page_file_name = adjusted_page_file_name+'.xls'
+                        json_page_file_name = adjusted_page_file_name+'.json'
                         
                         if os.path.exists(excel_page_file_name):
                             os.remove(excel_page_file_name)
@@ -688,9 +708,11 @@ def repair():
                         
                         #输出json
                         text_data = output_data(page_table)
-                        with open(json_page_file_name, 'wt', encoding = 'gb18030') as fp:
-                            json.dump(text_data, fp, ensure_ascii=False)
-                           
+                        if text_data:
+                            with open(json_page_file_name, 'wt', encoding = 'gb18030') as fp:
+                                json.dump(text_data, fp, ensure_ascii=False)
+                        else:
+                            print('该页未检测到表格数据。')
                         #写入excel
                         if page_table:
                             write_page_to_excel_by_sheet(excel_page_file_name, page_table)
