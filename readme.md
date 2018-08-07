@@ -12,7 +12,7 @@ tabula是一个专业的pdf表格数据导出项目，此代码是对tabula导�
 
 ## 使用方式：
 ```python
-python adjust_table.py <pdf_file>|<directory> [check=yes(default)|no] [page=2|2-10|all|top5(default)]
+python adjust_table.py <pdf_file>|<directory> [check=yes(default)|no] [page=2|2-10|all|top5(default)] [mode=lattice(default)|stream]
 ```
 **check**:表示对pdf文件中每一页的表格单独输出一个json和excel文件，方便检查对照转换效果。默认是yes，输出目录是./output。
 
@@ -21,6 +21,7 @@ python adjust_table.py <pdf_file>|<directory> [check=yes(default)|no] [page=2|2-
 * python adjust_table.py target/G.pdf 
 * python adjust_table.py target/  check=no 
 * python adjust_table.py target/baogaobiao.pdf  check=yes page=5-10
+* python adjust_table.py target/ check=no mode=lattice
 
 ## 有待改进
 转换效果因文档不同还有待改善，并且不同的文档可能有需要特别自定义的地方。暂时整理到这里，有时间再更新。
