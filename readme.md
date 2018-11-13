@@ -1,5 +1,5 @@
 # adjust tabula extract
-tabula是一个专业的pdf表格数据导出项目，此代码是对tabula导出复杂表格数据的调整。
+对tabula导出复杂表格数据的调整。[tabula](https://github.com/tabulapdf/tabula)是一个专业的pdf表格数据导出项目。
 
 ## 安装组件：
 1. [安装Java](http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html "java")运行环境。目的是能够运行tabula的jar包。
