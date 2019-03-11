@@ -1,5 +1,11 @@
-# adjust tabula extract
-对tabula导出复杂表格数据的调整。[tabula](https://github.com/tabulapdf/tabula)是一个专业的pdf表格数据导出项目。
+# 大批量的从pdf文件导出表格数据
+
+## 项目简介
+该项目是为解决大批量的从pdf文件导出表格，采取的方案是[tabula](https://github.com/tabulapdf/tabula)+自定义调整。本项目代码就是自定义调整的代码实现。
+## 原理简述
+对不规则的复杂表格输出时，tabula会出现部分内容错乱的情况。经过对tabula的json导出文件进行分析，该文件保留了源PDF文件每行每列的位置信息，分别是用top,height,left,width表示，并且同行的height和top值相等，同列的width+left = 对应标题列的width+left。这是本项目的实现原理。
+## 实现过程
+指定表格的标题行，根据行列规则确定行列边界，逐一扫描每一个单元格计算并标记该单元格正确的行列坐标。然后对同样行列的值，根据目标文件的语义判断是先进行行方向内容合并还是列方向内容合并。
 
 ## 安装组件：
 1. [安装Java](http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html "java")运行环境。目的是能够运行tabula的jar包。
