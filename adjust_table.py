@@ -35,6 +35,7 @@ table_header=[['名称、地名代码','水平范围','备注'],
                           ['第一季度',' 第二季度 ','第三季度 ','第四季度 '],
                           ['产品名称','营业收入','营业利润','毛利率','营业收入比上年同期增减','营业利润比上年同期增减','毛利率比上年同期增减'],
                           ['资产的具体内容','形成原因','资产规模','所在地','运营模式','保障资产安全性的控制措施','收益状况','境外资产占公司净资产的比重','是否存在重大减值风险'],
+                          ['Resultatr?kning', 'Not', '2018', '2017']
                             ]
 """
 tabula两种输出模式：lattice和stream。
@@ -205,6 +206,9 @@ def adjust(extract_table):
     data=table['data']
     header=data[header_index]  
     
+    # 表格标题栏数据调试确认
+    # print("标题栏数据:%s\n" % header)
+    
     table_height=table['height']
     table_width=table['width']
     table_top=table['top']
@@ -227,8 +231,15 @@ def adjust(extract_table):
             row_obj['top']=row_top
             row_info.append(row_obj.copy())
             
-    # print(row_info)
+    # print("行信息:%s\n" % row_info)
     #2.列边界从标题栏中截取
+    #2019-4-17列边界判定逻辑调整
+    #当在stream模式中，因为没有明显的表格线作为分界线，所以标题的left+width不足够用来作为列边界。
+    #准确的说，因为有了表格线，所以标题栏的left值是和准确的边界值是相同的，所以当没有表格线的时候，才会出现不准确的问题。
+    #解决方式：查找每一列中最宽的行，粗略的作为列边界。
+    #又有新的问题，表格的边界又怎么确定呢？简单的for循环下去吗？
+    # for c in range(header_index, len(header)):
+        
     #3.标记
     for r in range(0,len(mark_data)):
         
@@ -251,11 +262,19 @@ def adjust(extract_table):
                 
                 #3.2查找col坐标
                 for j in range(0,len(header)):
+                    # print("列坐标信息：%f,\t%f" % (cell['left']+cell['width'],header[j]['left']+header[j]['width']))
                     if compare(cell['left']+cell['width'],header[j]['left']+header[j]['width'])<=0:
                         if compare(cell['left']+cell['width'],header[j]['left'])>0:
                             x=j
                             # print('1-x:%d/%d' % (x,j))
                             #跨列标记
+                            #2019-4-17思路再整理
+                            #单凭cell['left']和header[j]['left']进行比较，是没有考虑到列标题内容的宽度小于行实际内容的宽度。
+                            #而tabula的所有输出都是基于内容边界的。
+                            #所以这里的列边界判断出现了一点问题。
+                            #边界的条件判定不应该以内容边界为准，也就是说不能单单以tabula输出的数值做标准。
+                            #这个问题似乎只会出现在stream模式里面，因为没有明确的边界。
+                            #所以table_header只能告诉程序有确定的几列，还不足够用来确定列的边界。
                             if compare(cell['left'],header[j]['left'])<0:
                                 start=0
                                 # end=0
@@ -269,7 +288,7 @@ def adjust(extract_table):
                             
                 # print('2-x:%d' % x)
             mark(cell,x,y)
-            # print(cell)
+            # print("标记检查：%s\n" % cell)
     
     #4.移动
     new_table=[]
@@ -440,7 +459,12 @@ def is_header(row):
     for header in table_header:
         # print('key:%s,value:%s' % (key,header))
         header_text=''.join(header)
+        # if row_text:
+            # print("output of row_text:%s" % row_text)
+            # if row_text.find("Resultatr") >= 0:
+                # print("row text:%s" % row_text)
         if row_text == header_text:
+            # print('found header.')
             return True
     return False     
 
@@ -569,11 +593,11 @@ def repair():
             print('need check') if need_check else print('only output all')
             
             lattice_mode = ['lattice', 'l', 'r', 'spreadsheet']
-            stream_mode =['stream', 's', 'n']
+            stream_mode =['stream', 't', 'n']
             extract_mode = find_param('mode', 'r')
             if not extract_mode or extract_mode not in lattice_mode+stream_mode:
                 extract_mode = 'r'
-                
+            print("extract_mode:%s" % extract_mode)   
             for file in pdf_files:
                  
                 #分两种形式输出调整后的表格：
@@ -694,7 +718,8 @@ def repair():
                                 print(' Page number does not exist')
                                 # pages=i-1
                                 break
-                                
+                        
+                        # print('检查表格内容:%s\n' % lattice_table)
                         page_table=adjust_tables(lattice_table)
                         
                         adjusted_page_file_name=output_dir+os.path.splitext(os.path.split(file)[1])[0]+'-page-'+repr(i)+'-(adjusted)'
